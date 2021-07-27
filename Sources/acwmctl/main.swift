@@ -39,13 +39,15 @@ struct ACWM {
     let config : Config
     let session = URLSession(configuration: .ephemeral)
     
-    let UID_ON_OFF = 1
-    let UID_FAN_LEVEL = 4
+    enum Uid: Int {
+        case onOff = 1
+        case fanLevel = 4
+    }
     
     func runCommand(args: [String]) {
         
         func usageDie() {
-            print("Usage: \(args[0]) <on|off|fan 1234>")
+            print("Usage: \(args[0]) <on|off|fan 1-4>")
             exit(1)
         }
         
@@ -57,9 +59,9 @@ struct ACWM {
         
         switch (cmd) {
         case "on":
-            execute(uid: UID_ON_OFF, value: 1)
+            execute(uid: Uid.onOff, value: 1)
         case "off":
-            execute(uid: UID_ON_OFF, value: 0)
+            execute(uid: Uid.onOff, value: 0)
         case "fan":
             if args.count < 2 {
                 print("error: set fan level")
@@ -71,7 +73,7 @@ struct ACWM {
                 exit(1)
             }
             
-            execute(uid: UID_FAN_LEVEL, value: lvl)
+            execute(uid: Uid.fanLevel, value: lvl)
             
         default:
             usageDie()
@@ -79,12 +81,9 @@ struct ACWM {
         
     }
     
-    func execute(uid: Int, value: Int) {
+    func execute(uid: Uid, value: Int) {
         initAc { success in
-            if (success) {
-                print("init successful")
-            }
-            else {
+            if (!success) {
                 print("there were errors during init process")
                 exit(1)
             }
@@ -95,7 +94,7 @@ struct ACWM {
                     exit(1)
                 }
                 setdatapointvalue(sessionId: sessionId, uid: uid, value: value) { result in
-                    print("executed setdatapointvalue for \(uid) value \(value) result \(result)")
+                    print("setdatapointvalue \(uid)=\(value): \(result ? "success" : "fail")")
                     logout(sessionId: sessionId)
                 }
                 
@@ -148,7 +147,10 @@ struct ACWM {
             let decoder = JSONDecoder()
             let response = try! decoder.decode(Response.self, from: data)
             
-            let checker = ["\(UID_ON_OFF)" : "On/Off", "\(UID_FAN_LEVEL)" : "Fan Speed"]
+            let checker = [
+                "\(Uid.onOff.rawValue)" : "On/Off",
+                "\(Uid.fanLevel.rawValue)" : "Fan Speed"
+            ]
             
             for (key, value) in checker {
                 
@@ -222,9 +224,9 @@ struct ACWM {
         }
     }
     
-    func setdatapointvalue(sessionId: String, uid: Int, value: Int, completionHandler: @escaping (Bool) -> Void) {
+    func setdatapointvalue(sessionId: String, uid: Uid, value: Int, completionHandler: @escaping (Bool) -> Void) {
 
-        let dict : CommandDict = ["sessionID": sessionId, "uid": uid, "value": value]
+        let dict : CommandDict = ["sessionID": sessionId, "uid": uid.rawValue, "value": value]
 
         write(command: "setdatapointvalue", dict: dict) { dict, err in
             if let dict = dict {
