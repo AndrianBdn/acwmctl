@@ -12,6 +12,6 @@ let package = Package(
     targets: [
         .target(
             name: "acwmctl",
-            dependencies: []),
+            dependencies: [])
     ]
 )
